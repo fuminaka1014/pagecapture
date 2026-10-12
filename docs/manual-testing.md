@@ -27,4 +27,4 @@
 
 macOS、CPU、ディスプレイ構成、アプリのバージョン、確認した項目を記録してください。未確認の項目は未確認のままにします。
 
-初期alpha版では、このチェックリストは未実施です。実行済みの自動検証は`検証.md`に記載しています。
+初期alpha版では、このチェックリストは未実施です。自動テストの対象と実行手順は[README](../README.md)に、実行結果は[GitHub Actions](https://github.com/fuminaka1014/pagecapture/actions)に記載しています。
