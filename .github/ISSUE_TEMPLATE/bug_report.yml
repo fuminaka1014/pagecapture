@@ -1,0 +1,27 @@
+name: Bug report / 不具合報告
+description: 再現手順と動作環境を知らせる
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: ログインURL、個人情報、書籍や教材の画像は添付しないでください。
+  - type: input
+    id: environment
+    attributes:
+      label: 動作環境
+      description: macOSのバージョン、Apple Silicon / Intel、PageCaptureのバージョン
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      description: 合成資料またはdocs/demo.htmlで再現できる場合は、その手順も記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 期待する結果と実際の結果
+    validations:
+      required: true
