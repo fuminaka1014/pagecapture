@@ -31,6 +31,8 @@
 
 ## インストール
 
+[Releasesからalpha版をダウンロード](https://github.com/fuminaka1014/pagecapture/releases)。
+
 配布ZIPがある場合は展開し、`PageCapture.app`をApplicationsフォルダなどに置いてから開いてください。配置を決めてから許可を設定します。
 
 alpha版はローカルのアドホック署名です。Apple Developer ID署名・公証は行っていません。macOSから実行が拒否される場合は、配布元と内容を確認したうえで、下記のソースからのビルドも選べます。
@@ -133,6 +135,8 @@ Select a capture region and the position of a next-page button. PageCapture clic
 - Japanese and English interfaces, including tooltips, status messages, and errors.
 
 ### Requirements and Installation
+
+Download the alpha build from [Releases](https://github.com/fuminaka1014/pagecapture/releases).
 
 macOS 14 or later. Builds support Apple Silicon and Intel Macs. Screen Recording permission is required; automatic clicking also requires Accessibility permission.
 
