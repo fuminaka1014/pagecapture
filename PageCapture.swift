@@ -16,10 +16,15 @@ enum CaptureError: LocalizedError {
 }
 
 enum Paper: String, CaseIterable, Identifiable {
-  case landscape = "A4 横"
-  case portrait = "A4 縦"
-  case original = "画像と同じ比率"
+  case landscape, portrait, original
   var id: String { rawValue }
+  var title: String {
+    switch self {
+    case .landscape: return L10n.text(.paperLandscape)
+    case .portrait: return L10n.text(.paperPortrait)
+    case .original: return L10n.text(.paperOriginal)
+    }
+  }
   func size(for image: CGImage) -> CGSize {
     switch self {
     case .landscape: return CGSize(width: 841.89, height: 595.28)
@@ -57,11 +62,11 @@ enum ImageTools {
       let destination = CGImageDestinationCreateWithURL(
         url as CFURL, UTType.png.identifier as CFString, 1, nil)
     else {
-      throw CaptureError.message("画像ファイルを作成できませんでした。")
+      throw CaptureError.message(L10n.text(.imageCreateError))
     }
     CGImageDestinationAddImage(destination, image, nil)
     guard CGImageDestinationFinalize(destination) else {
-      throw CaptureError.message("画像を保存できませんでした。空き容量を確認してください。")
+      throw CaptureError.message(L10n.text(.imageSaveError))
     }
   }
 
@@ -69,7 +74,7 @@ enum ImageTools {
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
       let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
     else {
-      throw CaptureError.message("保存済み画像を読み込めませんでした。")
+      throw CaptureError.message(L10n.text(.imageLoadError))
     }
     return image
   }
@@ -95,7 +100,7 @@ enum ImageTools {
 
 enum PDFExporter {
   static func write(images: [URL], to url: URL, paper: Paper) throws {
-    guard !images.isEmpty else { throw CaptureError.message("撮影済みのページがありません。") }
+    guard !images.isEmpty else { throw CaptureError.message(L10n.text(.noPagesError)) }
     let temporary = url.deletingLastPathComponent().appendingPathComponent(
       ".\(UUID().uuidString).pdf")
     defer { try? FileManager.default.removeItem(at: temporary) }
@@ -107,7 +112,7 @@ enum PDFExporter {
           kCGPDFContextCreator as String: "PageCapture",
         ] as CFDictionary)
     else {
-      throw CaptureError.message("PDFを作成できませんでした。保存先を確認してください。")
+      throw CaptureError.message(L10n.text(.pdfCreateError))
     }
     do {
       for imageURL in images {
@@ -192,7 +197,7 @@ final class SelectionView: NSView {
       path.lineWidth = 2
       path.stroke()
     }
-    let text = pointMode ? "次ページのボタンをクリック   ·   Escでキャンセル" : "撮影範囲をドラッグ   ·   Escでキャンセル"
+    let text = L10n.text(pointMode ? .selectorNext : .selectorRegion)
     let attrs: [NSAttributedString.Key: Any] = [
       .font: NSFont.systemFont(ofSize: 18, weight: .semibold),
       .foregroundColor: NSColor.white,
@@ -284,7 +289,7 @@ final class CaptureModel: ObservableObject {
   @Published var stopOnDuplicate = true
   @Published var isRunning = false
   @Published var completed = 0
-  @Published var status = "待機中"
+  @Published var status = L10n.text(.idle)
   @Published var error: String?
   @Published var preview: NSImage?
   @Published var outputURL: URL?
@@ -385,16 +390,16 @@ final class CaptureModel: ObservableObject {
   }
 
   private func makeCapture() async throws -> (SCContentFilter, SCStreamConfiguration) {
-    guard let region else { throw CaptureError.message("撮影範囲を選択してください。") }
+    guard let region else { throw CaptureError.message(L10n.text(.regionRequiredError)) }
     let content = try await SCShareableContent.excludingDesktopWindows(
       false, onScreenWindowsOnly: true)
     guard let display = content.displays.first(where: { $0.displayID == region.displayID }) else {
-      throw CaptureError.message("選択した画面が見つかりません。撮影範囲を選び直してください。")
+      throw CaptureError.message(L10n.text(.displayMissingError))
     }
     guard
       CGRect(x: 0, y: 0, width: display.width, height: display.height).contains(region.localRect)
     else {
-      throw CaptureError.message("画面の配置が変わっています。撮影範囲を選び直してください。")
+      throw CaptureError.message(L10n.text(.displayChangedError))
     }
     let ownApp = content.applications.filter {
       $0.processID == ProcessInfo.processInfo.processIdentifier
@@ -415,7 +420,7 @@ final class CaptureModel: ObservableObject {
     guard !isRunning else { return }
     isRunning = true
     error = nil
-    status = "テスト撮影中"
+    status = L10n.text(.testCapturing)
     task = Task {
       do {
         let (filter, config) = try await makeCapture()
@@ -424,10 +429,10 @@ final class CaptureModel: ObservableObject {
         let image = try await SCScreenshotManager.captureImage(
           contentFilter: filter, configuration: config)
         preview = NSImage(cgImage: image, size: CGSize(width: image.width, height: image.height))
-        status = "テスト撮影完了"
-      } catch is CancellationError { status = "テスト撮影を中止しました" } catch {
+        status = L10n.text(.testComplete)
+      } catch is CancellationError { status = L10n.text(.testCancelled) } catch {
         self.error = error.localizedDescription
-        status = "撮影できませんでした"
+        status = L10n.text(.captureFailed)
       }
       isRunning = false
       showMainWindow()
@@ -440,20 +445,20 @@ final class CaptureModel: ObservableObject {
     else { return }
     refreshPermissions()
     guard screenAllowed else {
-      error = "「画面収録」を許可してから実行してください。"
+      error = L10n.text(.screenPermissionError)
       return
     }
     guard pageCount == 1 || clickAllowed else {
-      error = "「アクセシビリティ」を許可してから実行してください。"
+      error = L10n.text(.clickPermissionError)
       return
     }
     guard pageCount == 1 || targetApp != nil else {
-      error = "次ページのボタンがあるアプリを確認できませんでした。位置を選び直してください。"
+      error = L10n.text(.targetMissingError)
       return
     }
     let panel = NSSavePanel()
     panel.allowedContentTypes = [.pdf]
-    panel.nameFieldStringValue = "ページキャプチャ.pdf"
+    panel.nameFieldStringValue = L10n.text(.defaultFileName)
     panel.canCreateDirectories = true
     guard panel.runModal() == .OK, let destination = panel.url else { return }
     let count = pageCount
@@ -490,7 +495,7 @@ final class CaptureModel: ObservableObject {
       mainWindow?.orderOut(nil)
       activeTarget?.activate(options: [])
       for second in stride(from: 3, through: 1, by: -1) {
-        status = "\(second)秒後に開始"
+        status = L10n.format(.countdown, second)
         updateStatusItem()
         try await Task.sleep(for: .seconds(1))
       }
@@ -498,7 +503,7 @@ final class CaptureModel: ObservableObject {
       for page in 1...count {
         try Task.checkCancellation()
         try validateTarget(activeTarget)
-        status = "\(page) / \(count) ページを撮影中"
+        status = L10n.format(.capturing, page, count)
         updateStatusItem()
         let image = try await stableImage(
           filter: filter, config: config,
@@ -512,7 +517,9 @@ final class CaptureModel: ObservableObject {
         preview = NSImage(cgImage: image, size: CGSize(width: image.width, height: image.height))
         if page < count, let clickPoint {
           try Task.checkCancellation()
-          guard AXIsProcessTrusted() else { throw CaptureError.message("操作の許可が取り消されました。") }
+          guard AXIsProcessTrusted() else {
+            throw CaptureError.message(L10n.text(.clickPermissionRevokedError))
+          }
           try await Task.sleep(for: .milliseconds(100))
           try Task.checkCancellation()
           try validateTarget(activeTarget, at: clickPoint)
@@ -522,7 +529,7 @@ final class CaptureModel: ObservableObject {
       }
     } catch is CancellationError { cancelled = true } catch { failure = error.localizedDescription }
     if !images.isEmpty {
-      status = "PDFを保存中"
+      status = L10n.text(.pdfSaving)
       updateStatusItem()
       do {
         // The writer opens one PNG at a time, so long captures do not retain every full-size image.
@@ -532,15 +539,15 @@ final class CaptureModel: ObservableObject {
         outputURL = destination
         status =
           cancelled
-          ? "停止しました · \(completed)ページ保存済み"
-          : failure == nil ? "完了 · \(completed)ページ保存済み" : "\(completed)ページまで保存しました"
+          ? L10n.format(.stoppedSaved, completed)
+          : L10n.format(failure == nil ? .complete : .partialSaved, completed)
       } catch {
-        failure = "PDFの保存に失敗しました。撮影画像は \(imageFolder.path) に残っています。\n\(error.localizedDescription)"
-        status = "PDFを保存できませんでした"
+        failure = L10n.format(.pdfSaveError, imageFolder.path, error.localizedDescription)
+        status = L10n.text(.pdfSaveFailed)
       }
     } else {
       try? FileManager.default.removeItem(at: imageFolder)
-      status = cancelled ? "中止しました" : "撮影できませんでした"
+      status = L10n.text(cancelled ? .cancelled : .captureFailed)
     }
     error = failure
     isRunning = false
@@ -552,14 +559,14 @@ final class CaptureModel: ObservableObject {
   private func validateTarget(_ target: NSRunningApplication?, at point: CGPoint? = nil) throws {
     guard let target else { return }
     guard !target.isTerminated else {
-      throw CaptureError.message("ページを表示していたアプリが終了しました。")
+      throw CaptureError.message(L10n.text(.targetExitedError))
     }
     guard NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier
     else {
-      throw CaptureError.message("別のアプリが前面になったため停止しました。対象アプリを表示して再実行してください。")
+      throw CaptureError.message(L10n.text(.targetChangedError))
     }
     if let point, application(at: point)?.processIdentifier != target.processIdentifier {
-      throw CaptureError.message("ページ送り位置に対象アプリがないため停止しました。位置を選び直してください。")
+      throw CaptureError.message(L10n.text(.clickPointChangedError))
     }
   }
 
@@ -580,10 +587,7 @@ final class CaptureModel: ObservableObject {
       if gate.accepts(fingerprint) { return image }
       try await Task.sleep(for: .milliseconds(400))
     }
-    throw CaptureError.message(
-      gate.changed
-        ? "画面が安定しないため停止しました。待ち時間を増やして再実行してください。"
-        : "ページが変わらなかったため停止しました。最終ページ、または次ページのボタン位置を確認してください。")
+    throw CaptureError.message(L10n.text(gate.changed ? .screenUnstableError : .pageUnchangedError))
   }
 
   private func click(at point: CGPoint) throws {
@@ -595,7 +599,7 @@ final class CaptureModel: ObservableObject {
         mouseEventSource: source, mouseType: .leftMouseUp, mouseCursorPosition: point,
         mouseButton: .left)
     else {
-      throw CaptureError.message("クリック操作を作成できませんでした。")
+      throw CaptureError.message(L10n.text(.clickCreateError))
     }
     down.setIntegerValueField(.mouseEventClickState, value: 1)
     up.setIntegerValueField(.mouseEventClickState, value: 1)
@@ -613,7 +617,8 @@ final class CaptureModel: ObservableObject {
   private func showStatusItem() {
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let menu = NSMenu()
-    let item = NSMenuItem(title: "撮影を停止", action: #selector(stopFromMenu), keyEquivalent: "")
+    let item = NSMenuItem(
+      title: L10n.text(.stop), action: #selector(stopFromMenu), keyEquivalent: "")
     item.target = self
     menu.addItem(item)
     statusItem?.menu = menu
@@ -624,7 +629,7 @@ final class CaptureModel: ObservableObject {
   private func updateStatusItem() {
     statusItem?.button?.title = "  \(status)"
     statusItem?.button?.image = NSImage(
-      systemSymbolName: "camera", accessibilityDescription: "ページキャプチャ")
+      systemSymbolName: "camera", accessibilityDescription: L10n.text(.appName))
   }
 
   func openPDF() { if let outputURL { NSWorkspace.shared.open(outputURL) } }
@@ -640,7 +645,7 @@ struct ContentView: View {
     VStack(spacing: 0) {
       HStack(spacing: 12) {
         Image(systemName: "doc.viewfinder").font(.system(size: 28)).foregroundStyle(.mint)
-        Text("ページキャプチャ").font(.system(size: 22, weight: .semibold))
+        Text(L10n.text(.appName)).font(.system(size: 22, weight: .semibold))
         Spacer()
         Text(model.status).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
       }.padding(22)
@@ -648,53 +653,61 @@ struct ContentView: View {
       ScrollView(.vertical) {
         HStack(alignment: .top, spacing: 24) {
           VStack(alignment: .leading, spacing: 19) {
-            setting("撮影範囲", icon: "crop") {
+            setting(L10n.text(.captureRegion), icon: "crop") {
               HStack {
                 Text(
-                  model.region.map { "\(Int($0.localRect.width)) × \(Int($0.localRect.height)) pt" }
-                    ?? "未選択"
+                  model.region.map {
+                    L10n.format(.regionSize, Int($0.localRect.width), Int($0.localRect.height))
+                  }
+                    ?? L10n.text(.notSelected)
                 )
                 .foregroundStyle(model.region == nil ? .secondary : .primary)
                 Spacer()
                 Button(action: model.chooseRegion) { Image(systemName: "viewfinder") }
-                  .help("撮影範囲を選択").accessibilityLabel("撮影範囲を選択")
+                  .help(L10n.text(.chooseRegion)).accessibilityLabel(L10n.text(.chooseRegion))
               }
             }
-            setting("次ページの位置", icon: "arrow.right") {
+            setting(L10n.text(.nextPagePosition), icon: "arrow.right") {
               HStack {
-                Text(model.nextPoint.map { "X \(Int($0.x))  /  Y \(Int($0.y))" } ?? "未選択")
-                  .foregroundStyle(model.nextPoint == nil ? .secondary : .primary)
+                Text(
+                  model.nextPoint.map { L10n.format(.pointCoordinates, Int($0.x), Int($0.y)) }
+                    ?? L10n.text(.notSelected)
+                )
+                .foregroundStyle(model.nextPoint == nil ? .secondary : .primary)
                 Spacer()
                 Button(action: model.chooseNext) { Image(systemName: "cursorarrow.click") }
-                  .help("次ページのボタン位置を選択").accessibilityLabel("次ページのボタン位置を選択")
+                  .help(L10n.text(.chooseNext)).accessibilityLabel(L10n.text(.chooseNext))
               }
             }
             Divider()
             HStack {
-              Text("ページ数")
+              Text(L10n.text(.pageCount))
               Spacer()
               TextField("", value: $model.pageCount, format: .number.grouping(.never))
                 .textFieldStyle(.roundedBorder).frame(width: 72)
-                .accessibilityLabel("ページ数")
+                .accessibilityLabel(L10n.text(.pageCount))
               Stepper("", value: $model.pageCount, in: 1...5000).labelsHidden()
             }
             VStack(alignment: .leading, spacing: 6) {
               HStack {
-                Text("ページ切替後の待ち時間")
+                Text(L10n.text(.waitAfterTurn))
                 Spacer()
-                Text(String(format: "%.1f 秒", model.delay)).monospacedDigit().foregroundStyle(
+                Text(L10n.format(.waitValue, model.delay)).monospacedDigit().foregroundStyle(
                   .secondary)
               }
               Slider(value: $model.delay, in: 0.5...10, step: 0.5)
-                .accessibilityLabel("ページ切替後の待ち時間")
+                .accessibilityLabel(L10n.text(.waitAfterTurn))
             }
-            Picker("PDFの用紙", selection: $model.paper) {
-              ForEach(Paper.allCases) { Text($0.rawValue).tag($0) }
+            Picker(L10n.text(.pdfPaper), selection: $model.paper) {
+              ForEach(Paper.allCases) { Text($0.title).tag($0) }
             }
-            Toggle("同じ画面が続いたら停止", isOn: $model.stopOnDuplicate)
+            Toggle(L10n.text(.stopOnDuplicate), isOn: $model.stopOnDuplicate)
             Divider()
-            permission("画面収録", granted: model.screenAllowed, action: model.allowScreen)
-            permission("アクセシビリティ", granted: model.clickAllowed, action: model.allowClick)
+            permission(
+              L10n.text(.screenPermission), granted: model.screenAllowed, action: model.allowScreen)
+            permission(
+              L10n.text(.accessibilityPermission), granted: model.clickAllowed,
+              action: model.allowClick)
           }.frame(width: 285).disabled(model.isRunning)
 
           VStack(spacing: 12) {
@@ -709,20 +722,25 @@ struct ContentView: View {
             }.frame(width: 350, height: 270)
               .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.18)))
             HStack {
-              Text("プレビュー").font(.system(size: 12)).foregroundStyle(.secondary)
+              Text(L10n.text(.preview)).font(.system(size: 12)).foregroundStyle(.secondary)
               Spacer()
-              Button(action: model.testCapture) { Label("テスト撮影", systemImage: "camera") }
-                .disabled(model.region == nil || model.isRunning || !model.screenAllowed)
+              Button(action: model.testCapture) {
+                Label(L10n.text(.testCapture), systemImage: "camera")
+              }
+              .disabled(model.region == nil || model.isRunning || !model.screenAllowed)
             }
             if model.isRunning {
               ProgressView(value: Double(model.completed), total: Double(max(model.pageCount, 1)))
-              Text("\(model.completed) / \(model.pageCount) ページ").font(.system(size: 12))
-                .monospacedDigit()
+              Text(L10n.format(.progressPages, model.completed, model.pageCount)).font(
+                .system(size: 12)
+              )
+              .monospacedDigit()
             }
             if model.outputURL != nil {
               HStack {
-                Button(action: model.openPDF) { Label("PDFを開く", systemImage: "doc") }
-                Button(action: model.revealPDF) { Image(systemName: "folder") }.help("Finderで表示")
+                Button(action: model.openPDF) { Label(L10n.text(.openPDF), systemImage: "doc") }
+                Button(action: model.revealPDF) { Image(systemName: "folder") }
+                  .help(L10n.text(.revealPDF)).accessibilityLabel(L10n.text(.revealPDF))
               }
             }
           }.frame(width: 350)
@@ -738,10 +756,12 @@ struct ContentView: View {
       Divider()
       HStack {
         if model.isRunning {
-          Button(role: .destructive, action: model.stop) { Label("停止", systemImage: "stop.fill") }
+          Button(role: .destructive, action: model.stop) {
+            Label(L10n.text(.stop), systemImage: "stop.fill")
+          }
         }
         Spacer()
-        Button(action: model.start) { Label("撮影してPDFに保存", systemImage: "play.fill") }
+        Button(action: model.start) { Label(L10n.text(.captureAndSave), systemImage: "play.fill") }
           .buttonStyle(.borderedProminent).tint(.teal)
           .disabled(
             model.isRunning || model.region == nil || model.pageCount < 1 || model.pageCount > 5000
@@ -767,7 +787,7 @@ struct ContentView: View {
         .foregroundStyle(granted ? Color.teal : Color.secondary)
       Text(name).font(.system(size: 12))
       Spacer()
-      if !granted { Button("許可", action: action).controlSize(.small) }
+      if !granted { Button(L10n.text(.grantPermission), action: action).controlSize(.small) }
     }
   }
 }
@@ -783,7 +803,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     window = NSWindow(
       contentRect: CGRect(x: 0, y: 0, width: 725, height: 620),
       styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
-    window.title = "ページキャプチャ"
+    window.title = L10n.text(.appName)
     window.isReleasedWhenClosed = false
     window.delegate = self
     window.contentView = hosting
@@ -794,7 +814,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     menu.addItem(appItem)
     let appMenu = NSMenu()
     appMenu.addItem(
-      withTitle: "ページキャプチャを終了", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+      withTitle: L10n.text(.quitApp), action: #selector(NSApplication.terminate(_:)),
+      keyEquivalent: "q")
     appItem.submenu = appMenu
     NSApp.mainMenu = menu
     window.makeKeyAndOrderFront(nil)
@@ -868,14 +889,29 @@ enum SelfTest {
     let app = NSApplication.shared
     app.setActivationPolicy(.prohibited)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    for populated in [false, true] {
+    for state in ["initial", "completed", "running", "save-error"] {
       let model = CaptureModel(observePermissions: false)
-      if populated {
+      if state != "initial" {
         model.preview = NSImage(cgImage: fixture(index: 0), size: CGSize(width: 1200, height: 800))
-        model.status = "完了 · 3ページ保存済み"
+        model.status = L10n.format(.complete, 3)
         model.completed = 3
         model.outputURL = directory.appendingPathComponent("example.pdf")
-        model.error = "ページが変わらなかったため停止しました。最終ページ、または次ページのボタン位置を確認してください。"
+        model.error = L10n.text(.pageUnchangedError)
+        model.screenAllowed = true
+        model.clickAllowed = true
+      }
+      if state == "running" {
+        model.isRunning = true
+        model.outputURL = nil
+        model.status = L10n.format(.capturing, 3, 10)
+        model.error = nil
+      }
+      if state == "save-error" {
+        model.status = L10n.text(.pdfSaveFailed)
+        model.error = L10n.format(
+          .pdfSaveError,
+          "captured-images/" + String(repeating: "LongFolderName", count: 8) + "/pages",
+          L10n.text(.imageSaveError))
       }
       let view = NSHostingView(rootView: ContentView(model: model))
       view.frame = CGRect(x: 0, y: 0, width: 725, height: 620)
@@ -892,13 +928,13 @@ enum SelfTest {
       guard let data = bitmap.representation(using: .png, properties: [:]) else {
         throw CaptureError.message("UI PNG unavailable")
       }
-      try data.write(
-        to: directory.appendingPathComponent(populated ? "completed.png" : "initial.png"))
+      try data.write(to: directory.appendingPathComponent("\(state).png"))
     }
     print("PASS: offscreen UI rendered")
   }
 
   static func run(directory: URL) throws {
+    try verifyLocalizations()
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     var urls: [URL] = []
     for index in 0..<3 {
@@ -993,6 +1029,72 @@ enum SelfTest {
     }
     print(
       "PASS: PNG roundtrip, stable-frame and duplicate gates, PDF formats / page order / overwrite / render / partial save / failure preservation; screen coordinates checked when a display is available"
+    )
+  }
+
+  static func verifyLocalizations() throws {
+    let required = Set(L10n.Key.allCases.map(\.rawValue))
+    let specifier = try NSRegularExpression(pattern: "%((?:\\.\\d+)?(?:ld|@|f))")
+    let signatures: [L10n.Key: [String]] = [
+      .countdown: ["ld"], .capturing: ["ld", "ld"], .complete: ["ld"],
+      .stoppedSaved: ["ld"], .partialSaved: ["ld"], .pdfSaveError: ["@", "@"],
+      .regionSize: ["ld", "ld"], .pointCoordinates: ["ld", "ld"],
+      .waitValue: [".1f"], .progressPages: ["ld", "ld"],
+    ]
+    for language in ["en", "ja"] {
+      guard let folder = Bundle.main.url(forResource: language, withExtension: "lproj") else {
+        throw CaptureError.message("Missing localization bundle: \(language)")
+      }
+      let data = try Data(contentsOf: folder.appendingPathComponent("Localizable.strings"))
+      guard
+        let table = try PropertyListSerialization.propertyList(from: data, format: nil)
+          as? [String: String],
+        Set(table.keys) == required
+      else {
+        throw CaptureError.message("Localization keys are missing or unexpected: \(language)")
+      }
+      for key in L10n.Key.allCases {
+        let template = table[key.rawValue]!
+        let matches = specifier.matches(
+          in: template, range: NSRange(template.startIndex..., in: template))
+        let actual = matches.map { (template as NSString).substring(with: $0.range(at: 1)) }
+        guard !template.isEmpty, actual == (signatures[key] ?? []),
+          L10n.text(key, language: language) != key.rawValue
+        else {
+          throw CaptureError.message(
+            "Invalid translation or format arguments: \(language) / \(key.rawValue)")
+        }
+      }
+      let infoData = try Data(contentsOf: folder.appendingPathComponent("InfoPlist.strings"))
+      guard
+        let info = try PropertyListSerialization.propertyList(from: infoData, format: nil)
+          as? [String: String],
+        info["CFBundleDisplayName"]?.isEmpty == false,
+        info["NSScreenCaptureUsageDescription"]?.isEmpty == false
+      else {
+        throw CaptureError.message("Missing localized app metadata: \(language)")
+      }
+      let error = L10n.format(.pdfSaveError, language: language, "test-images", "Disk full")
+      guard error.contains("test-images"), error.hasSuffix("Disk full"),
+        L10n.format(.capturing, language: language, 2, 10).contains("2"),
+        L10n.format(.capturing, language: language, 2, 10).contains("10")
+      else {
+        throw CaptureError.message("Localized error or progress arguments failed: \(language)")
+      }
+    }
+    guard L10n.format(.complete, language: "en", 1) == "Complete · 1 page saved",
+      L10n.format(.complete, language: "en", 3) == "Complete · 3 pages saved",
+      L10n.format(.stoppedSaved, language: "en", 1) == "Stopped · 1 page saved",
+      L10n.format(.stoppedSaved, language: "en", 3) == "Stopped · 3 pages saved",
+      L10n.format(.partialSaved, language: "en", 1) == "Saved 1 page before stopping",
+      L10n.format(.partialSaved, language: "en", 2) == "Saved 2 pages before stopping",
+      L10n.text(.appName, language: "fr") == "PageCapture",
+      L10n.text(.appName, language: "ja-JP") == L10n.text(.appName, language: "ja")
+    else {
+      throw CaptureError.message("Plural forms or language fallback failed")
+    }
+    print(
+      "PASS: English/Japanese translation keys, format arguments, metadata, plurals, and fallback; selected language: \(L10n.language)"
     )
   }
 }

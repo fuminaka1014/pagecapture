@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>status.complete</key>
+  <dict>
+    <key>NSStringLocalizedFormatKey</key><string>%#@pages@</string>
+    <key>pages</key>
+    <dict>
+      <key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+      <key>NSStringFormatValueTypeKey</key><string>ld</string>
+      <key>one</key><string>Complete · %ld page saved</string>
+      <key>other</key><string>Complete · %ld pages saved</string>
+    </dict>
+  </dict>
+  <key>status.stopped.saved</key>
+  <dict>
+    <key>NSStringLocalizedFormatKey</key><string>%#@pages@</string>
+    <key>pages</key>
+    <dict>
+      <key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+      <key>NSStringFormatValueTypeKey</key><string>ld</string>
+      <key>one</key><string>Stopped · %ld page saved</string>
+      <key>other</key><string>Stopped · %ld pages saved</string>
+    </dict>
+  </dict>
+  <key>status.partial.saved</key>
+  <dict>
+    <key>NSStringLocalizedFormatKey</key><string>%#@pages@</string>
+    <key>pages</key>
+    <dict>
+      <key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+      <key>NSStringFormatValueTypeKey</key><string>ld</string>
+      <key>one</key><string>Saved %ld page before stopping</string>
+      <key>other</key><string>Saved %ld pages before stopping</string>
+    </dict>
+  </dict>
+</dict>
+</plist>

@@ -1,5 +1,7 @@
 # PageCapture / ページキャプチャ
 
+[日本語](#pagecapture--ページキャプチャ) | [English](#english)
+
 **画面のページを順番に撮影して、印刷用PDFにまとめるMacアプリ。**
 
 撮影範囲と「次ページ」ボタンの位置を指定すると、画面の変化を待ちながら画像を保存します。ブラウザでも、クリックでページを送れるデスクトップアプリでも使えます。
@@ -17,6 +19,7 @@
 - A4横・A4縦・撮影画像と同じ比率のPDF出力
 - 停止やエラー時も撮影済みページをPDFに保存
 - 元のPNGを連番で保存
+- 日本語・英語の画面表示
 
 ## 対応環境
 
@@ -50,6 +53,12 @@ alpha版はローカルのアドホック署名です。Apple Developer ID署名
 停止は画面上部のメニューバーから行えます。アクセシビリティ許可が有効ならEscも使えます。PDFと同じ場所に`ファイル名-pages-識別子`フォルダを作り、撮影画像を残します。
 
 詳しい説明は[使い方](使い方.md)、実画面の確認項目は[手動テスト](docs/manual-testing.md)を参照してください。[動作確認用ページ](docs/demo.html)は手元のブラウザで開けます。
+
+## 表示言語
+
+日本語と英語に対応しています。macOSの言語設定、またはアプリごとの言語設定に従って表示します。未対応の言語では英語にフォールバックします。言語を変更した場合はアプリを開き直してください。
+
+ボタン、ツールチップ、進捗、エラー、保存ファイル名、権限説明は`Resources/ja.lproj`と`Resources/en.lproj`に外出ししています。英語のページ数の単数・複数表現は`Localizable.stringsdict`で定義しています。[翻訳の追加・修正](docs/localization.md)を参照してください。
 
 ## 制限
 
@@ -99,4 +108,88 @@ bash scripts/package.sh
 
 ## ライセンス
 
-[MIT License](LICENSE)。Copyright (c) 2026 fuminaka1014。
+[MIT License](LICENSE). Copyright (c) 2026 fuminaka1014.
+
+---
+
+## English
+
+**Capture pages on your screen and combine them into a print-ready PDF on macOS.**
+
+Select a capture region and the position of a next-page button. PageCapture clicks the button, waits for the image to settle, and saves each page. It works with browsers and desktop apps that use a clickable next-page button.
+
+![PageCapture in English](docs/images/app-en.png)
+
+**Status: v0.1.0-alpha.** Synthetic-image tests cover image saving, frame stability, duplicate detection, and PDF export. Real screen capture and clicking, execution on Intel Macs, and execution on macOS 14 are not yet verified. Start with a few synthetic pages before using it for longer captures.
+
+### Features
+
+- Select a region by dragging and a next-page button by clicking.
+- Preview a test capture and configure the page count and wait time.
+- Stop on unchanged pages, or stop from the menu bar or with Esc.
+- Export image PDFs in A4 landscape, A4 portrait, or the original image aspect ratio.
+- Keep captured pages when a session is stopped or an error occurs.
+- Keep numbered PNG files alongside the PDF.
+- Japanese and English interfaces, including tooltips, status messages, and errors.
+
+### Requirements and Installation
+
+macOS 14 or later. Builds support Apple Silicon and Intel Macs. Screen Recording permission is required; automatic clicking also requires Accessibility permission.
+
+Extract the distribution ZIP and place `PageCapture.app` in Applications or another permanent location before granting permissions. This alpha build is ad-hoc signed, without Apple Developer ID signing or notarization. You can also build it from source.
+
+Open the app and use **Allow** to open System Settings. Grant **Screen Recording** and **Accessibility** access, then restart the app if macOS requests it.
+
+### Usage
+
+1. Show the first page in the target browser or app.
+2. Select the page area using the capture-region button.
+3. Select the next-page button. Selecting its position does not turn the page.
+4. Use **Test capture** to check the crop, then set the page count, wait time, and PDF paper size.
+5. Choose **Capture and save PDF**, then choose a destination. Capture begins after a three-second countdown.
+6. Open the finished PDF, check its contents, and print it.
+
+Keep the target window, zoom, and tab unchanged during capture. Avoid mouse and keyboard input. The app stops if another app comes to the front, but it cannot distinguish tab or window changes within the same app.
+
+Use the menu-bar item or Esc to stop. Captured PNGs remain in a `filename-pages-identifier` folder next to the PDF. See the [English guide](docs/usage-en.md) for more details. The [synthetic test pages](docs/demo.html) can be opened directly in your browser.
+
+### Language
+
+The interface follows macOS's preferred language or the app-specific language setting. Japanese and English are available; other languages fall back to English. Restart PageCapture after changing its language.
+
+Strings are stored in `Resources/ja.lproj` and `Resources/en.lproj`. App metadata and permission descriptions use `InfoPlist.strings`, and English page-count plurals use `Localizable.stringsdict`. See the [localization guide](docs/localization.md).
+
+### Limitations and Privacy
+
+PDFs contain images, without OCR, searchable text, or text selection. Resolution depends on the displayed page. Page turning supports clicks only, without keyboard, scroll, or swipe automation. Unchanged or subtly different pages may be considered duplicates; disable **Stop on unchanged pages** when appropriate. Capture stops if the image does not settle within about 15 seconds, and it cannot guarantee that a page has finished loading.
+
+Overlapping windows may appear in captures. Automatic updates, saved settings, Developer ID signing, and notarization are not implemented. Screen capture and clicking require the [manual checks](docs/manual-testing.md), separate from the automated tests.
+
+PageCapture does not upload images or PDFs. It does not collect login credentials, account information, or browser traffic. Captured PNGs and PDFs are saved to the destination you select.
+
+### Build and Test
+
+Install Xcode Command Line Tools with a macOS 14 or newer SDK. The app uses Swift and Apple frameworks, without third-party libraries.
+
+```bash
+# Build for the current Mac
+bash build.sh
+
+# Build a Universal app for Apple Silicon and Intel
+ARCHS="arm64 x86_64" bash build.sh
+
+# Run tests, including localization resources and plural forms
+bash scripts/test.sh
+
+# Render initial, completed, running, and error states in both languages
+RENDER_UI=1 bash scripts/test.sh
+
+# Package the app with Japanese and English usage guides
+bash scripts/package.sh
+```
+
+The app is generated at `dist/PageCapture.app`; distribution archives are generated in `dist/`. Automated tests do not capture the screen or click other apps. GitHub Actions is configured to build and test the app.
+
+### License
+
+[MIT License](LICENSE). Copyright (c) 2026 fuminaka1014.

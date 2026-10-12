@@ -1,0 +1,2 @@
+"CFBundleDisplayName" = "PageCapture";
+"NSScreenCaptureUsageDescription" = "Capture the selected screen region and save the page images as a PDF.";

@@ -16,6 +16,7 @@ trap 'rm -rf "$stage_dir"' EXIT
 ditto "$app_dir" "$stage_dir/PageCapture/PageCapture.app"
 cp "$project_dir/LICENSE" "$stage_dir/PageCapture/LICENSE"
 cp "$project_dir/使い方.md" "$stage_dir/PageCapture/README-ja.md"
+cp "$project_dir/docs/usage-en.md" "$stage_dir/PageCapture/README-en.md"
 archive="$project_dir/dist/PageCapture-v$version-alpha-$archive_arch.zip"
 ditto -c -k --norsrc --keepParent "$stage_dir/PageCapture" "$archive"
 archive_name="${archive##*/}"

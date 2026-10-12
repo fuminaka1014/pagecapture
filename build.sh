@@ -22,7 +22,7 @@ for architecture in "${architectures[@]}"; do
     *) printf 'Unsupported architecture: %s\n' "$architecture" >&2; exit 1 ;;
   esac
   xcrun swiftc -parse-as-library -O -swift-version 5 -target "$architecture-apple-macos14.0" \
-    "$project_dir/PageCapture.swift" -o "$build_dir/PageCapture-$architecture" \
+    "$project_dir/PageCapture.swift" "$project_dir/Localization.swift" -o "$build_dir/PageCapture-$architecture" \
     -framework AppKit -framework SwiftUI -framework ScreenCaptureKit \
     -framework ApplicationServices -framework PDFKit -framework ImageIO -framework UniformTypeIdentifiers
   binaries+=("$build_dir/PageCapture-$architecture")
@@ -30,6 +30,7 @@ done
 xcrun lipo -create "${binaries[@]}" -output "$bundle_dir/Contents/MacOS/PageCapture"
 cp "$project_dir/Info.plist" "$bundle_dir/Contents/Info.plist"
 cp "$project_dir/LICENSE" "$bundle_dir/Contents/Resources/LICENSE"
+ditto "$project_dir/Resources" "$bundle_dir/Contents/Resources"
 codesign --force --sign - --identifier io.github.fuminaka1014.pagecapture "$bundle_dir"
 ditto "$bundle_dir" "$app_dir"
 codesign --verify --deep --strict "$app_dir"
